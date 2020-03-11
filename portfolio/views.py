@@ -85,8 +85,8 @@ class MyStreamListener(tweepy.StreamListener):
             if not tweet['retweeted'] and 'RT @' not in tweet['text']:
                   if tweet['coordinates'] == None:
                         pass
-                  elif tweet['geo']['type'] == 'Point' and 'coronavirus' in tweet['text']:
-                    # Get user via Tweepy so we can get their number of followers
+                  else:
+                # Get user via Tweepy so we can get their number of followers
                     user_profile = api.get_user(tweet['user']['screen_name'])
 
                     tweets_cord1 = tweet['coordinates']
@@ -107,8 +107,6 @@ class MyStreamListener(tweepy.StreamListener):
                         tweets_cord2_fin
                     )
 
-                    print(tweet_data['coordinates'])
-
                     # Insert that data into the DB
                     tweet_data.insertTweet()
 
@@ -124,8 +122,6 @@ class MyStreamListener(tweepy.StreamListener):
 
                     current_count.insertTweetCount()
 
-                  else:
-                    pass
 
           # Let me know if something bad happens
           except Exception as e:
@@ -141,7 +137,7 @@ myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
 region = [-124.7771694, 24.520833, -66.947028, 49.384472, -164.639405, 58.806859, -144.152365, 71.76871, -160.161542, 18.776344, -154.641396, 22.878623]
 
 myStream.filter(
-  track=['coronavirus', 'COVID-19', 'corona virus', 'Coronavirus', 'coronaVirus', 'covid19', 'covid-19'],
+  track=['coronavirus'],
   locations= region,
   languages= ['en'],
   is_async=True
