@@ -77,13 +77,27 @@ class Tweet():
         #     (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
         # conn.commit()
 
-        # Postgres connection
-        DATABASE_URL = os.environ['DATABASE_URL']
-        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        sql = """INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
-        cpsy = connpsy.cursor()
-        cpsy.execute(sql, (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
-        connpsy.commit()
+        try:
+            # Postgres connection
+            DATABASE_URL = os.environ['DATABASE_URL']
+            connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+            # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
+            cpsy = connpsy.cursor()
+            cpsy.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
+            connpsy.commit()
+            count = connpsy.rowcount
+            print(count, "entered successfully")
+
+        except(Exception, psycopg2.Error) as error:
+            if(connpsy):
+                print("Failed to insert record", error)
+        
+        finally:
+            if(connpsy):
+                cpsy.close()
+                connpsy.close()
+                print("Connection is closed")
+
 
 
 #override tweepy.StreamListener to add logic to on_status
