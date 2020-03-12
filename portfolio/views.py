@@ -83,9 +83,9 @@ class MyStreamListener(tweepy.StreamListener):
 
             # filter out retweets
             if not tweet['retweeted'] and 'RT @' not in tweet['text']:
-                  if tweet['coordinates'] == None and 'coronavirus' not in tweet['text']:
+                  if tweet['coordinates'] == None:
                         pass
-                  else:
+                  elif 'coronavirus' in tweet['text']:
                 # Get user via Tweepy so we can get their number of followers
                     user_profile = api.get_user(tweet['user']['screen_name'])
 
@@ -121,6 +121,9 @@ class MyStreamListener(tweepy.StreamListener):
                     )
 
                     current_count.insertTweetCount()
+
+            else:
+                pass
 
 
           # Let me know if something bad happens
