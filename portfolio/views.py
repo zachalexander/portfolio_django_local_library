@@ -50,7 +50,7 @@ class TweetCount():
         DATABASE_URL = os.environ['DATABASE_URL']
         connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
         cpsy = connpsy.cursor()
-        sql = """UPDATE portfolio_tweetscount SET count=%%%s%%, date=%%%r%% WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)"""
+        sql = """UPDATE portfolio_tweetscount SET count=%%s%%, date=%%r%% WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)"""
         cpsy.execute(sql, (self.count, self.date))
         connpsy.commit()
 
@@ -81,9 +81,11 @@ class Tweet():
             # Postgres connection
             DATABASE_URL = os.environ['DATABASE_URL']
             connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+            print(connpsy)
             # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
             cpsy = connpsy.cursor()
-            cpsy.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
+            cpsy.execute("""INSERT INTO portfolio_tweets(id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (%s, %s, %s, %d, %r, %s, %s, %s)""", 
+            (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
             connpsy.commit()
             count = connpsy.rowcount
             print(count, "entered successfully")
