@@ -130,7 +130,7 @@ USE_TZ = True
 
 
 # Heroku: Update database configuration from $DATABASE_URL.
-db_from_env = dj_database_url.config(conn_max_age=500)
+db_from_env = dj_database_url.config(conn_max_age=600, ssl_require=True)
 DATABASES['default'].update(db_from_env)
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -141,4 +141,3 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # This should already be in your settings.py
 django_heroku.settings(locals())
-# del DATABASES['default']['OPTIONS']['sslmode']
