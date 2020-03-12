@@ -39,22 +39,20 @@ class TweetCount():
 
         # Inserting that data into the DB
     def insertTweetCount(self):
-        # DB stuff
+        # SQlite3 connection
         conn = sqlite3.connect('users.sqlite3')
         c = conn.cursor()
-
-        DATABASE_URL = os.environ['DATABASE_URL']
-        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cpsy = connpsy.cursor()
-
-        cpsy.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
-            (self.count, self.date))
-        
-        connpsy.commit()
-
         c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
             (self.count, self.date))
         conn.commit()
+
+        # Postgres connection
+        DATABASE_URL = os.environ['DATABASE_URL']
+        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cpsy = connpsy.cursor()
+        sql = """UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)"""
+        cpsy.execute(sql, (self.count, self.date))
+        connpsy.commit()
 
 # Class for defining a Tweet
 class Tweet():
@@ -72,22 +70,21 @@ class Tweet():
 
     # Inserting that data into the DB
     def insertTweet(self):
-        # DB stuff
+        # SQLite3 connection
         conn = sqlite3.connect('users.sqlite3')
         c = conn.cursor()
-
-        DATABASE_URL = os.environ['DATABASE_URL']
-        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cpsy = connpsy.cursor()
-
-        cpsy.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
-        
-        connpsy.commit()
-
         c.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
         conn.commit()
+
+        # Postgres connection
+        DATABASE_URL = os.environ['DATABASE_URL']
+        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        sql = """INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+        cpsy = connpsy.cursor()
+        cpsy.execute(sql, (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
+        connpsy.commit()
+
 
 #override tweepy.StreamListener to add logic to on_status
 class MyStreamListener(tweepy.StreamListener):
