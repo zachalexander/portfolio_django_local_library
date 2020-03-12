@@ -15,6 +15,8 @@ import tweepy
 import sqlite3
 import json
 from datetime import datetime as dt
+import psycopg2
+import os
 
 # Twitter Streaming API credentials
 
@@ -41,6 +43,15 @@ class TweetCount():
         conn = sqlite3.connect('users.sqlite3')
         c = conn.cursor()
 
+        DATABASE_URL = os.environ['DATABASE_URL']
+        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cpsy = connpsy.cursor()
+
+        cpsy.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
+            (self.count, self.date))
+        
+        connpsy.commit()
+
         c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
             (self.count, self.date))
         conn.commit()
@@ -64,6 +75,15 @@ class Tweet():
         # DB stuff
         conn = sqlite3.connect('users.sqlite3')
         c = conn.cursor()
+
+        DATABASE_URL = os.environ['DATABASE_URL']
+        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cpsy = connpsy.cursor()
+
+        cpsy.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
+        
+        connpsy.commit()
 
         c.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
