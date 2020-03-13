@@ -205,7 +205,7 @@ def tweet_list_first(request):
 def tweet_list_all(request):
     # Get all
     if request.method == 'GET':
-        tweets = Tweets.objects.order_by('-date')[2:]
+        tweets = Tweets.objects.order_by('-date')
         tweets_serializer = TweetsSerializer(tweets, many=True)
         return JsonResponse(tweets_serializer.data, safe=False)
 
