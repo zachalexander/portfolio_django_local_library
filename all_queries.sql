@@ -9,7 +9,7 @@ drop table if exists users.portfolio_tweets;
 drop table if exists users.portfolio_tweetscount;
 
 CREATE TABLE users.portfolio_tweets (
-id int NOT NULL PRIMARY KEY,
+id bigint(20) NOT NULL PRIMARY KEY,
 tweetText varchar(255) NOT NULL,
 user varchar(255) NOT NULL,
 followers int NOT NULL,
@@ -21,7 +21,7 @@ coordinates_lon varchar(255)
 
 CREATE TABLE users.portfolio_tweetscount (
 id null,
-count int,
+count bigint(20),
 date datetime NOT NULL
 );
 
@@ -32,7 +32,7 @@ VALUES (1, CURRENT_TIMESTAMP);
 drop table if exists users.portfolio_users;
 
 CREATE TABLE users.portfolio_users (
-id int NOT NULL PRIMARY KEY,
+id bigint(20) NOT NULL PRIMARY KEY,
 first_name varchar(255),
 last_name varchar(255),
 email varchar(255)
