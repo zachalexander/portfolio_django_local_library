@@ -86,8 +86,6 @@ class Tweet():
             cpsy.execute("""INSERT INTO portfolio_tweets("id", "tweetText", "user", "followers", "date", "location", "coordinates_lat", "coordinates_lon") VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", 
                 (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
             connpsy.commit()
-            count = connpsy.rowcount
-            print(count, "entered successfully")
 
         except(Exception, psycopg2.Error) as error:
             if(connpsy):
