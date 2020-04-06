@@ -15,6 +15,7 @@ class Tweets(models.Model):
     followers      = models.IntegerField(default='NA', null=True)
     date           = models.DateTimeField(max_length=200, default=timezone.now, null=True)
     location       = models.CharField(max_length=1000, default='NA', null=True)
+    tweetPlace     = models.CharField(max_length=1000, default='NA', null=True)
     coordinates_lat= models.CharField(max_length=1000, default='NA', null=True)
     coordinates_lon= models.CharField(max_length=1000, default='NA', null=True)
 

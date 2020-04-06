@@ -15,7 +15,7 @@ import tweepy
 import sqlite3
 import json
 from datetime import datetime as dt
-import psycopg2
+# import psycopg2
 import os
 
 # Twitter Streaming API credentials
@@ -39,63 +39,64 @@ class TweetCount():
 
         # Inserting that data into the DB
     def insertTweetCount(self):
-        # SQlite3 connection
-        # conn = sqlite3.connect('users.sqlite3')
-        # c = conn.cursor()
-        # c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
-        #     (self.count, self.date))
-        # conn.commit()
+        #SQlite3 connection
+        conn = sqlite3.connect('users.sqlite3')
+        c = conn.cursor()
+        c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
+            (self.count, self.date))
+        conn.commit()
 
-        # Postgres connection
-        DATABASE_URL = os.environ['DATABASE_URL']
-        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cpsy = connpsy.cursor()
-        sql = """UPDATE portfolio_tweetscount SET "count"=%s, "date"=%s WHERE id = NULL"""
-        cpsy.execute(sql, (self.count, self.date))
-        connpsy.commit()
+        # # Postgres connection
+        # DATABASE_URL = os.environ['DATABASE_URL']
+        # connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        # cpsy = connpsy.cursor()
+        # sql = """UPDATE portfolio_tweetscount SET "count"=%s, "date"=%s WHERE id = NULL"""
+        # cpsy.execute(sql, (self.count, self.date))
+        # connpsy.commit()
 
 # Class for defining a Tweet
 class Tweet():
 
     # Data on the tweet
-    def __init__(self, id, text, user, followers, date, location, coordinates_lat, coordinates_lon):
+    def __init__(self, id, text, user, followers, date, location, tweetPlace, coordinates_lat, coordinates_lon):
         self.id = id
         self.text = text
         self.user = user
         self.followers = followers
         self.date = date
         self.location = location
+        self.tweetPlace = tweetPlace
         self.coordinates_lat = str(coordinates_lat)
         self.coordinates_lon = str(coordinates_lon)
 
     # Inserting that data into the DB
     def insertTweet(self):
-        # SQLite3 connection
-        # conn = sqlite3.connect('users.sqlite3')
-        # c = conn.cursor()
-        # c.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        #     (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
-        # conn.commit()
+        #SQLite3 connection
+        conn = sqlite3.connect('users.sqlite3')
+        c = conn.cursor()
+        c.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, tweetPlace, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (self.id, self.text, self.user, self.followers, self.date, self.location, self.tweetPlace, self.coordinates_lat, self.coordinates_lon))
+        conn.commit()
 
-        try:
-            # Postgres connection
-            DATABASE_URL = os.environ['DATABASE_URL']
-            connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-            # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
-            cpsy = connpsy.cursor()
-            cpsy.execute("""INSERT INTO portfolio_tweets("id", "tweetText", "user", "followers", "date", "location", "coordinates_lat", "coordinates_lon") VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", 
-                (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
-            connpsy.commit()
+        # try:
+        #     # Postgres connection
+        #     DATABASE_URL = os.environ['DATABASE_URL']
+        #     connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        #     # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
+        #     cpsy = connpsy.cursor()
+        #     cpsy.execute("""INSERT INTO portfolio_tweets("id", "tweetText", "user", "followers", "date", "location", "coordinates_lat", "coordinates_lon") VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", 
+        #         (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
+        #     connpsy.commit()
 
-        except(Exception, psycopg2.Error) as error:
-            if(connpsy):
-                print("Failed to insert record", error)
+        # except(Exception, psycopg2.Error) as error:
+        #     if(connpsy):
+        #         print("Failed to insert record", error)
         
-        finally:
-            if(connpsy):
-                cpsy.close()
-                connpsy.close()
-                print("Connection is closed")
+        # finally:
+        #     if(connpsy):
+        #         cpsy.close()
+        #         connpsy.close()
+        #         print("Connection is closed")
 
 
 
@@ -111,46 +112,53 @@ class MyStreamListener(tweepy.StreamListener):
             # Make it JSON
             tweet = json.loads(data)
 
-            # filter out retweets
+                # filter out retweets
             if not tweet['retweeted'] and 'RT @' not in tweet['text']:
-                  if tweet['coordinates'] == None:
+                if tweet['coordinates'] == None:
                         pass
-                  elif 'coronavirus' in tweet['text']:
+                elif 'coronavirus' in tweet['text']:
+                    if tweet['place']['country_code'] == 'US':
                 # Get user via Tweepy so we can get their number of followers
-                    user_profile = api.get_user(tweet['user']['screen_name'])
+                        user_profile = api.get_user(tweet['user']['screen_name'])
 
-                    tweets_cord1 = tweet['coordinates']
-                    tweets_cord1_fin = tweets_cord1['coordinates'][0]
+                        tweets_cord1 = tweet['coordinates']
+                        tweets_cord1_fin = tweets_cord1['coordinates'][0]
 
-                    tweets_cord2 = tweet['coordinates']
-                    tweets_cord2_fin = tweets_cord1['coordinates'][1]
+                        tweets_cord2 = tweet['coordinates']
+                        tweets_cord2_fin = tweets_cord1['coordinates'][1]
 
-                    # assign all data to Tweet object
-                    tweet_data = Tweet(
-                        float(tweet['id']),
-                        str(tweet['text'].encode('utf-8')),
-                        tweet['user']['screen_name'],
-                        user_profile.followers_count,
-                        dt.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y'),
-                        tweet['user']['location'],
-                        tweets_cord1_fin,
-                        tweets_cord2_fin
-                    )
+                        country = tweet['place']['country_code']
+                        full_name = tweet['place']['full_name']
+                        print(country)
+                        print(full_name)
 
-                    # Insert that data into the DB
-                    tweet_data.insertTweet()
+                        # assign all data to Tweet object
+                        tweet_data = Tweet(
+                            float(tweet['id']),
+                            str(tweet['text'].encode('utf-8')),
+                            tweet['user']['screen_name'],
+                            user_profile.followers_count,
+                            dt.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y'),
+                            tweet['user']['location'],
+                            full_name,
+                            tweets_cord1_fin,
+                            tweets_cord2_fin
+                        )
 
-                    tweet_count = Tweets.objects.count()
-                    time = str(dt.now())
-                    print(time)
-                    print(tweet_count)
+                        # Insert that data into the DB
+                        tweet_data.insertTweet()
 
-                    current_count = TweetCount(
-                        tweet_count,
-                        time
-                    )
+                        tweet_count = Tweets.objects.count()
+                        time = str(dt.now())
+                        print(time)
+                        print(tweet_count)
 
-                    current_count.insertTweetCount()
+                        current_count = TweetCount(
+                            tweet_count,
+                            time
+                        )
+
+                        current_count.insertTweetCount()
 
             else:
                 pass
@@ -165,7 +173,7 @@ class MyStreamListener(tweepy.StreamListener):
 
 
 myStreamListener = MyStreamListener()
-myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
+myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener, tweet_mode='extended')
 
 region = [-124.7771694, 24.520833, -66.947028, 49.384472, -164.639405, 58.806859, -144.152365, 71.76871, -160.161542, 18.776344, -154.641396, 22.878623]
 
@@ -262,6 +270,6 @@ def user_detail(request, pk):
         return JsonResponse(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # Delete on record
-    if request.method == 'DELETE':
-        user.delete()
-        return HttpResponse(status=HTTP_204_NO_CONTENT)
+    # if request.method == 'DELETE':
+    #     user.delete()
+    #     return HttpResponse(status=HTTP_204_NO_CONTENT)
