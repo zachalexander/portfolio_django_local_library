@@ -2,9 +2,10 @@ BEGIN TRANSACTION;
 
 select * from users.portfolio_tweets
 where tweetText like '%corona%'
-
 select * from users.portfolio_tweetscount
+select * from random
 
+drop table if exists random;
 drop table if exists users.portfolio_tweets;
 drop table if exists users.portfolio_tweetscount;
 
@@ -27,6 +28,14 @@ date datetime NOT NULL
 
 INSERT INTO users.portfolio_tweetscount (count, date)
 VALUES (1, CURRENT_TIMESTAMP);
+
+CREATE TABLE random (
+id null,
+number int
+);
+
+INSERT INTO random (number)
+VALUES (1);
 
 
 drop table if exists users.portfolio_users;

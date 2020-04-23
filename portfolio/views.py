@@ -1,22 +1,116 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-from django.contrib.auth.models import User
-from portfolio.models import Users
-from portfolio.serializers import UsersSerializer
+from django.views.generic import ListView
 from portfolio.models import Tweets
 from portfolio.serializers import TweetsSerializer
-from portfolio.models import TweetsCount
-from portfolio.serializers import TweetsCountSerializer
 from rest_framework import viewsets, status, serializers
 from rest_framework.parsers import JSONParser
 from django.http.response import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-import tweepy
 import sqlite3
 import json
-from datetime import datetime as dt
-# import psycopg2
+from json import dumps, loads, JSONEncoder, JSONDecoder
+import psycopg2
 import os
+import pusher
+import preprocessor as p
+import requests
+import time
+from datetime import datetime as dt
+from pprint import pprint
+from requests.auth import AuthBase
+from requests.auth import HTTPBasicAuth
+from requests_oauthlib import OAuth1Session
+import tweepy
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+consumer_key = 'oTEY24ghsRqntYvkhQtajGBVX'
+consumer_secret = 'RzXg2wJABf8JYSMrgUhFL6GMSKxYTJNYTKQVoHJEya0heRPJ2s'
+access_token = '393160291-SMzRKhJildn4UaGbGq4WwXqq71iTweUkBIXes2bU'
+access_token_secret = 'dfXmz7ReWJKBmSU5rWmUu3DbQqvygpzcTHU9Z4L86LmXg'
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+
+api = tweepy.API(auth)
+
+class MyStreamListener(tweepy.StreamListener):
+    # When data is received
+    def on_data(self, data):
+
+        # # Error handling
+        try:
+
+         # Make it JSON
+            tweet = json.loads(data)
+            # pprint(tweet)
+
+
+            if not tweet['retweeted'] and 'RT @' not in tweet['text']:
+              if tweet['extended_entities'] != None:
+                video_image = tweet['extended_entities']['media'][0]['media_url']
+                pprint(tweet['extended_entities']['media'][0]['video_info']['variants'][1]['url'])
+                video_url = tweet['extended_entities']['media'][0]['video_info']['variants'][1]['url']
+              # Get user via Tweepy so we can get their number of followers
+                twitter_name = tweet['user']['screen_name']
+
+                try:
+                    text = tweet.extended_tweet['full_text']
+                
+                except AttributeError:
+                    text = tweet['text']
+
+                if '.mp4' in video_url:
+                    # assign all data to Tweet object
+                    tweet_data = Tweet(
+                        video_url,
+                        twitter_name,
+                        video_image
+                    )
+
+                    # Insert that data into the DB
+                    tweet_data.insertTweet()
+
+                    tweet_count = Tweets.objects.count()
+                    time = str(dt.now())
+                    print(time)
+                    print(tweet_count)
+
+                    current_count = TweetCount(
+                        tweet_count,
+                        time
+                    )
+
+                    current_count.insertTweetCount()  
+
+
+            else:
+                pass
+
+
+        #Let me know if something bad happens
+        except Exception as e:
+            print(e)
+            pass
+
+        return True
+
+myStreamListener = MyStreamListener()
+myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener, tweet_mode='extended')
+
+myStream.filter(
+  track=['zachalexander'],
+  languages= ['en'],
+  is_async=True
+)
+
+pusher_client = pusher.Pusher(
+  app_id='978095',
+  key='c370de797b5f03b744ff',
+  secret='edfd30117dc6f4650a18',
+  cluster='us2',
+  ssl=True
+)
 
 # Twitter Streaming API credentials
 
@@ -24,10 +118,6 @@ consumer_key = 'oTEY24ghsRqntYvkhQtajGBVX'
 consumer_secret = 'RzXg2wJABf8JYSMrgUhFL6GMSKxYTJNYTKQVoHJEya0heRPJ2s'
 access_token = '393160291-SMzRKhJildn4UaGbGq4WwXqq71iTweUkBIXes2bU'
 access_token_secret = 'dfXmz7ReWJKBmSU5rWmUu3DbQqvygpzcTHU9Z4L86LmXg'
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-
-api = tweepy.API(auth)
 
 # Class for defining the tweet count
 class TweetCount():
@@ -40,236 +130,103 @@ class TweetCount():
         # Inserting that data into the DB
     def insertTweetCount(self):
         #SQlite3 connection
-        conn = sqlite3.connect('users.sqlite3')
-        c = conn.cursor()
-        c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
-            (self.count, self.date))
-        conn.commit()
+        # conn = sqlite3.connect('users.sqlite3')
+        # c = conn.cursor()
+        # c.execute("UPDATE portfolio_tweetscount SET count=%s, date=%r WHERE (SELECT count FROM portfolio_tweetscount ORDER BY count LIMIT 1)" %
+        #     (self.count, self.date))
+        # conn.commit()
 
-        # # Postgres connection
-        # DATABASE_URL = os.environ['DATABASE_URL']
-        # connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        # cpsy = connpsy.cursor()
-        # sql = """UPDATE portfolio_tweetscount SET "count"=%s, "date"=%s WHERE id = NULL"""
-        # cpsy.execute(sql, (self.count, self.date))
-        # connpsy.commit()
+        # Postgres connection
+        DATABASE_URL = os.environ['DATABASE_URL']
+        connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cpsy = connpsy.cursor()
+        sql = """UPDATE portfolio_tweetscount SET "count"=%s, "date"=%s WHERE id = NULL"""
+        cpsy.execute(sql, (self.count, self.date))
+        pusher_client.trigger('my-channel', 'tweetcount', {
+            'number': self.count,
+            'date': str(self.date)
+        })
+        connpsy.commit()
 
 # Class for defining a Tweet
 class Tweet():
 
     # Data on the tweet
-    def __init__(self, id, text, user, followers, date, location, tweetPlace, coordinates_lat, coordinates_lon):
-        self.id = id
-        self.text = text
-        self.user = user
-        self.followers = followers
-        self.date = date
-        self.location = location
-        self.tweetPlace = tweetPlace
-        self.coordinates_lat = str(coordinates_lat)
-        self.coordinates_lon = str(coordinates_lon)
+    def __init__(self, tweetId, username, videoImage):
+        self.tweetId = tweetId
+        self.username = username
+        self.videoImage = videoImage
 
     # Inserting that data into the DB
     def insertTweet(self):
         #SQLite3 connection
-        conn = sqlite3.connect('users.sqlite3')
-        c = conn.cursor()
-        c.execute("INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, tweetPlace, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (self.id, self.text, self.user, self.followers, self.date, self.location, self.tweetPlace, self.coordinates_lat, self.coordinates_lon))
-        conn.commit()
+        # conn = sqlite3.connect('users.sqlite3')
+        # c = conn.cursor()
+        # c.execute("INSERT INTO portfolio_tweets (tweetId, username, videoImage) VALUES (?, ?, ?)",
+        #     (self.tweetId, self.username, self.videoImage))
+        # conn.commit()
 
-        # try:
-        #     # Postgres connection
-        #     DATABASE_URL = os.environ['DATABASE_URL']
-        #     connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
-        #     # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
-        #     cpsy = connpsy.cursor()
-        #     cpsy.execute("""INSERT INTO portfolio_tweets("id", "tweetText", "user", "followers", "date", "location", "coordinates_lat", "coordinates_lon") VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", 
-        #         (self.id, self.text, self.user, self.followers, self.date, self.location, self.coordinates_lat, self.coordinates_lon))
-        #     connpsy.commit()
+        try:
+            # Postgres connection
+            DATABASE_URL = os.environ['DATABASE_URL']
+            connpsy = psycopg2.connect(DATABASE_URL, sslmode='require')
+            # sql = """ INSERT INTO portfolio_tweets (id, tweetText, user, followers, date, location, coordinates_lat, coordinates_lon) VALUES (?, ?, ?, ?, ?, ?, ?, ?) """
+            cpsy = connpsy.cursor()
+            cpsy.execute("""INSERT INTO portfolio_tweets("tweetId", "username", "videoImage") VALUES (%s, %s, %s);""", 
+                (self.tweetId, self.username, self.videoImage))
+            pusher_client.trigger('my-channel', 'videodetails', 1)
+            connpsy.commit()
 
-        # except(Exception, psycopg2.Error) as error:
-        #     if(connpsy):
-        #         print("Failed to insert record", error)
+        except(Exception, psycopg2.Error) as error:
+            if(connpsy):
+                print("Failed to insert record", error)
         
-        # finally:
-        #     if(connpsy):
-        #         cpsy.close()
-        #         connpsy.close()
-        #         print("Connection is closed")
-
-
-
-#override tweepy.StreamListener to add logic to on_status
-class MyStreamListener(tweepy.StreamListener):
-
-    # When data is received
-    def on_data(self, data):
-
-        # Error handling
-          try:
-
-            # Make it JSON
-            tweet = json.loads(data)
-
-                # filter out retweets
-            if not tweet['retweeted'] and 'RT @' not in tweet['text']:
-                if tweet['coordinates'] == None:
-                        pass
-                elif 'coronavirus' in tweet['text']:
-                    if tweet['place']['country_code'] == 'US':
-                # Get user via Tweepy so we can get their number of followers
-                        user_profile = api.get_user(tweet['user']['screen_name'])
-
-                        tweets_cord1 = tweet['coordinates']
-                        tweets_cord1_fin = tweets_cord1['coordinates'][0]
-
-                        tweets_cord2 = tweet['coordinates']
-                        tweets_cord2_fin = tweets_cord1['coordinates'][1]
-
-                        country = tweet['place']['country_code']
-                        full_name = tweet['place']['full_name']
-                        print(country)
-                        print(full_name)
-
-                        # assign all data to Tweet object
-                        tweet_data = Tweet(
-                            float(tweet['id']),
-                            str(tweet['text'].encode('utf-8')),
-                            tweet['user']['screen_name'],
-                            user_profile.followers_count,
-                            dt.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y'),
-                            tweet['user']['location'],
-                            full_name,
-                            tweets_cord1_fin,
-                            tweets_cord2_fin
-                        )
-
-                        # Insert that data into the DB
-                        tweet_data.insertTweet()
-
-                        tweet_count = Tweets.objects.count()
-                        time = str(dt.now())
-                        print(time)
-                        print(tweet_count)
-
-                        current_count = TweetCount(
-                            tweet_count,
-                            time
-                        )
-
-                        current_count.insertTweetCount()
-
-            else:
-                pass
-
-
-          # Let me know if something bad happens
-          except Exception as e:
-            print(e)
-            pass
-
-          return True
-
-
-myStreamListener = MyStreamListener()
-myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener, tweet_mode='extended')
-
-region = [-124.7771694, 24.520833, -66.947028, 49.384472, -164.639405, 58.806859, -144.152365, 71.76871, -160.161542, 18.776344, -154.641396, 22.878623]
-
-myStream.filter(
-  track=['coronavirus'],
-  locations= region,
-  languages= ['en'],
-  is_async=True
-)
+        finally:
+            if(connpsy):
+                cpsy.close()
+                connpsy.close()
+                print("Connection is closed")
 
 def index(request):
     return HttpResponse("<h1>Hello, Zach</h1>")
-
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UsersSerializer
 
 class TweetsViewSet(viewsets.ModelViewSet):
     queryset = Tweets.objects.all()
     serializer_class = TweetsSerializer
 
-class TweetsCountViewSet(viewsets.ModelViewSet):
-    queryset = TweetsCount.objects.all()
-    serializer_class = TweetsCountSerializer
+class TweetListView(ListView):
+    model = Tweets
+    paginate_by = 8
 
 # APIs
-
-@csrf_exempt
-def tweet_list_first(request):
-    # Get all
-    if request.method == 'GET':
-        tweets = Tweets.objects.order_by('-date')[:1]
-        tweets_serializer = TweetsSerializer(tweets, many=True)
-        return JsonResponse(tweets_serializer.data, safe=False)
 
 @csrf_exempt
 def tweet_list_all(request):
     # Get all
     if request.method == 'GET':
-        tweets = Tweets.objects.order_by('-date')
+        tweets = Tweets.objects.order_by('-id')
         tweets_serializer = TweetsSerializer(tweets, many=True)
         return JsonResponse(tweets_serializer.data, safe=False)
 
 @csrf_exempt
-def tweetcount_list(request):
+def tweet_list_pagination(request):
     # Get all
     if request.method == 'GET':
-        tweetcount = TweetsCount.objects.all()
-        tweetcount_serializer = TweetsCountSerializer(tweetcount, many=True)
-        return JsonResponse(tweetcount_serializer.data, safe=False)
+        tweets = Tweets.objects.order_by('-id')
+        paginator = Paginator(tweets, 16)
+        page = request.GET.get('page')
+        
+        try: 
+            posts = paginator.page(page)
+        except PageNotAnInteger:
+            posts = paginator.page(1)
+
+        except EmptyPage:
+            posts = paginator.page(paginator.num_pages)
+
+        tweets_serializer = TweetsSerializer(posts, many=True)
+        return JsonResponse(tweets_serializer.data, safe=False)
+ 
 
 
-@csrf_exempt
-def user_list(request):
-    # Get all
-    if request.method == 'GET':
-        users = Users.objects.all()
-        users_serializer = UsersSerializer(users, many=True)
-        return JsonResponse(users_serializer.data, safe=False)
-
-    # Add one
-    if request.method == 'POST':
-        user_data = JSONParser().parse(request)
-        user_serializer = UsersSerializer(data=user_data)
-        if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse(user_serializer.data, status=status.HTTP_201_CREATED)
-        return JsonResponse(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # Delete all
-    if request.method == 'DELETE':
-        Users.objects.all().delete()
-        return HttpResponse(status=status.HTTP_204_NO_CONTENT)
-
-@csrf_exempt
-def user_detail(request, pk):
-    try:
-        user = Users.objects.get(pk=pk)
-    except Users.DoesNotExist:
-        return HttpResponse(status=status.HTTP_404_NOT_FOUND)
-
-    # Retrieve one
-    if request.method == 'GET':
-        user_serializer = UsersSerializer(user)
-        return JsonResponse(user_serializer.data)
-
-    # Update one record
-    if request.method == 'PUT':
-        user_data = JSONParser().parse(request)
-        user_serializer = UsersSerializer(user, data=user_data)
-        if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse(user_serializer.data)
-        return JsonResponse(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # Delete on record
-    # if request.method == 'DELETE':
-    #     user.delete()
-    #     return HttpResponse(status=HTTP_204_NO_CONTENT)
+ 
